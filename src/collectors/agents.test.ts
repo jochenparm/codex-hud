@@ -2,18 +2,57 @@ import type { SessionInfo } from '../types/state.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { JsonlTail } from '../codex/jsonl-tail.js'
 import { collectAgentEntries } from './agents.js'
 
 const temporaryDirectories: string[] = []
 
 afterEach(() => {
+  vi.restoreAllMocks()
   for (const directory of temporaryDirectories.splice(0)) {
     fs.rmSync(directory, { recursive: true, force: true })
   }
 })
 
 describe('subagent collector', () => {
+  it('reads only the current session descendants, including nested children', () => {
+    const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-hud-agents-'))
+    temporaryDirectories.push(codexHome)
+    const directory = path.join(codexHome, 'sessions')
+    fs.mkdirSync(directory)
+    for (const [id, parentThreadId] of [['a-grandchild', 'child'], ['child', 'root'], ['unrelated', 'other-root']]) {
+      fs.writeFileSync(path.join(directory, `rollout-${id}.jsonl`), [
+        JSON.stringify({
+          timestamp: '2026-07-16T08:00:00Z',
+          type: 'session_meta',
+          payload: {
+            id,
+            timestamp: '2026-07-16T08:00:00Z',
+            cwd: '/work/demo',
+            source: { subagent: { thread_spawn: { parent_thread_id: parentThreadId } } },
+          },
+        }),
+        JSON.stringify({ type: 'event_msg', payload: { type: 'task_started', turn_id: id } }),
+        '',
+      ].join('\n'))
+    }
+    const session: SessionInfo = {
+      id: 'root',
+      rolloutPath: '/tmp/root.jsonl',
+      startTime: new Date('2026-07-16T08:00:00Z'),
+      cwd: '/work/demo',
+    }
+    const read = vi.spyOn(JsonlTail.prototype, 'read')
+    expect(collectAgentEntries(session, { CODEX_HOME: codexHome })).toEqual([
+      expect.objectContaining({ id: 'child', status: 'running', activeDescendantCount: 1 }),
+    ])
+    expect(read.mock.calls.map(([filePath]) => path.basename(filePath)).sort()).toEqual([
+      'rollout-a-grandchild.jsonl',
+      'rollout-child.jsonl',
+    ])
+  })
+
   it('finds a running canonical thread-spawn child', () => {
     const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-hud-agents-'))
     temporaryDirectories.push(codexHome)
