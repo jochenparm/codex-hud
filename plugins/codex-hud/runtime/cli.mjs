@@ -2501,7 +2501,7 @@ function launchNewTmuxSession(options, runner = createTmuxRunner(options.env, op
 		"-t",
 		sessionName,
 		"set-titles-string",
-		"#{pane_title}"
+		"#{P:#{?#{==:#{pane_index},0},#{pane_title},}}"
 	]);
 	runner.run([
 		"set-option",
