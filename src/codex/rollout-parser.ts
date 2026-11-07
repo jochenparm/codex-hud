@@ -444,7 +444,7 @@ export class RolloutParser {
   }
 
   private onSessionMeta(payload: SessionMetaPayload, timestamp: Date): void {
-    const id = payload.session_id ?? payload.id
+    const id = payload.id ?? payload.session_id
     if (!id || !this.filePath) {
       return
     }

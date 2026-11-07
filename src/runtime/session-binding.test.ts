@@ -53,7 +53,14 @@ describe('managed session binding', () => {
     fs.mkdirSync(cwd)
     const target = writeSession(codexHome, 'target', cwd, '2026-07-17T01:00:00Z')
     writeSession(codexHome, 'other', cwd, '2026-07-17T01:01:00Z')
+    const child = writeSession(codexHome, 'child', cwd, '2026-07-17T01:02:00Z')
+    const childData = JSON.parse(fs.readFileSync(child, 'utf8'))
+    childData.payload.session_id = 'target'
+    childData.payload.parent_thread_id = 'target'
+    childData.payload.source = { subagent: { thread_spawn: { parent_thread_id: 'target' } } }
+    fs.writeFileSync(child, `${JSON.stringify(childData)}\n`)
     expect(findRootSessionById(cwd, 'target', codexHome)?.path).toBe(target)
+    expect(findRootSessionById(cwd, 'child', codexHome)).toBeNull()
     expect(findRootSessionById(path.join(cwd, 'nested'), 'target', codexHome)).toBeNull()
     const data = JSON.parse(fs.readFileSync(target, 'utf8'))
     data.payload.source = { subagent: { thread_spawn: {} } }

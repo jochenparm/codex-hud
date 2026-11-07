@@ -16,26 +16,31 @@ afterEach(() => {
 })
 
 describe('subagent collector', () => {
-  it('reads only the current session descendants, including nested children', () => {
+  it('tracks sibling and nested thread IDs without reading unrelated rollouts', () => {
     const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-hud-agents-'))
     temporaryDirectories.push(codexHome)
     const directory = path.join(codexHome, 'sessions')
     fs.mkdirSync(directory)
-    for (const [id, parentThreadId] of [['a-grandchild', 'child'], ['child', 'root'], ['unrelated', 'other-root']]) {
-      fs.writeFileSync(path.join(directory, `rollout-${id}.jsonl`), [
+    for (const [id, parentThreadId] of [['a-grandchild', 'child'], ['child', 'root'], ['sibling', 'root'], ['unrelated', 'other-root']]) {
+      const filePath = path.join(directory, `rollout-${id}.jsonl`)
+      fs.writeFileSync(filePath, [
         JSON.stringify({
           timestamp: '2026-07-16T08:00:00Z',
           type: 'session_meta',
           payload: {
             id,
+            session_id: id === 'unrelated' ? 'other-root' : 'root',
             timestamp: '2026-07-16T08:00:00Z',
             cwd: '/work/demo',
+            parent_thread_id: parentThreadId,
+            thread_source: 'subagent',
             source: { subagent: { thread_spawn: { parent_thread_id: parentThreadId } } },
           },
         }),
         JSON.stringify({ type: 'event_msg', payload: { type: 'task_started', turn_id: id } }),
         '',
       ].join('\n'))
+      fs.utimesSync(filePath, new Date('2026-07-16T08:00:01Z'), new Date('2026-07-16T08:00:01Z'))
     }
     const session: SessionInfo = {
       id: 'root',
@@ -44,13 +49,34 @@ describe('subagent collector', () => {
       cwd: '/work/demo',
     }
     const read = vi.spyOn(JsonlTail.prototype, 'read')
-    expect(collectAgentEntries(session, { CODEX_HOME: codexHome })).toEqual([
+    const env = { CODEX_HOME: codexHome }
+    expect(collectAgentEntries(session, env, new Date('2026-07-16T08:00:02Z'))).toEqual([
       expect.objectContaining({ id: 'child', status: 'running', activeDescendantCount: 1 }),
+      expect.objectContaining({ id: 'sibling', status: 'running', activeDescendantCount: 0 }),
     ])
     expect(read.mock.calls.map(([filePath]) => path.basename(filePath)).sort()).toEqual([
       'rollout-a-grandchild.jsonl',
       'rollout-child.jsonl',
+      'rollout-sibling.jsonl',
     ])
+    const grandchildPath = path.join(directory, 'rollout-a-grandchild.jsonl')
+    for (const [type, timestamp, expectedCount] of [
+      ['task_complete', '2026-07-16T08:00:04Z', 0],
+      ['task_started', '2026-07-16T08:00:06Z', 1],
+    ] as const) {
+      read.mockClear()
+      fs.appendFileSync(grandchildPath, `${JSON.stringify({
+        timestamp,
+        type: 'event_msg',
+        payload: { type, turn_id: 'a-grandchild' },
+      })}\n`)
+      fs.utimesSync(grandchildPath, new Date(timestamp), new Date(timestamp))
+      expect(collectAgentEntries(session, env, new Date(timestamp))).toEqual([
+        expect.objectContaining({ id: 'child', status: 'running', activeDescendantCount: expectedCount }),
+        expect.objectContaining({ id: 'sibling', status: 'running', activeDescendantCount: 0 }),
+      ])
+      expect(read.mock.calls.map(([filePath]) => filePath)).toEqual([grandchildPath])
+    }
   })
 
   it('finds a running canonical thread-spawn child', () => {
