@@ -2500,6 +2500,20 @@ function launchNewTmuxSession(options, runner = createTmuxRunner(options.env, op
 		"set-option",
 		"-t",
 		sessionName,
+		"set-titles-string",
+		"#{pane_title}"
+	]);
+	runner.run([
+		"set-option",
+		"-t",
+		sessionName,
+		"set-titles",
+		"on"
+	]);
+	runner.run([
+		"set-option",
+		"-t",
+		sessionName,
 		"mouse",
 		"on"
 	]);

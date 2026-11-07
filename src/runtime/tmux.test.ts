@@ -32,7 +32,7 @@ function recordingRunner(outputs: SpawnSyncReturns<string>[] = []): { runner: Tm
 function newSessionOutputs(options: { attached?: boolean, privateSocket?: boolean } = {}): SpawnSyncReturns<string>[] {
   return [
     ...(!options.privateSocket ? [result(1)] : []),
-    ...Array.from({ length: 11 }, () => result()),
+    ...Array.from({ length: 13 }, () => result()),
     result(0, '%2\n'),
     result(),
     ...(options.attached ? [result()] : []),
@@ -89,6 +89,8 @@ describe('tmux launcher', () => {
     expect(calls.some(call => call[0] === 'split-window')).toBe(true)
     expect(calls.find(call => call[0] === 'split-window')).toContain('5')
     expect(calls.some(call => call.includes('status') && call.includes('off'))).toBe(true)
+    expect(calls).toContainEqual(['set-option', '-t', launched.sessionName!, 'set-titles-string', '#{pane_title}'])
+    expect(calls).toContainEqual(['set-option', '-t', launched.sessionName!, 'set-titles', 'on'])
     expect(calls).toContainEqual(['set-option', '-t', launched.sessionName!, 'mouse', 'on'])
     expect(calls).toContainEqual(['set-option', '-t', launched.sessionName!, 'prefix', 'None'])
     expect(calls).toContainEqual(['set-option', '-t', launched.sessionName!, 'prefix2', 'None'])
