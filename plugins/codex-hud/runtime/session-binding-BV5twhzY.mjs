@@ -3109,7 +3109,7 @@ var RolloutParser = class {
 		if (entry.type === "event_msg") this.onEvent(entry.payload, timestamp);
 	}
 	onSessionMeta(payload, timestamp) {
-		const id = payload.session_id ?? payload.id;
+		const id = payload.id ?? payload.session_id;
 		if (!id || !this.filePath) return;
 		this.state.session = {
 			id,
@@ -3352,7 +3352,7 @@ function readSessionCandidate(filePath) {
 		const entry = JSON.parse(line);
 		if (entry.type !== "session_meta" || !entry.payload) return null;
 		const payload = entry.payload;
-		const sessionId = payload.session_id ?? payload.id;
+		const sessionId = payload.id ?? payload.session_id;
 		const cwd = payload.cwd;
 		if (typeof sessionId !== "string" || typeof cwd !== "string") return null;
 		const stat = fs.statSync(filePath);
@@ -6440,15 +6440,15 @@ function parseAgent(candidate, now) {
 		}
 	};
 }
-function descendants(rootThreadId, runtimes) {
+function descendants(rootThreadId, candidates) {
 	const visible = /* @__PURE__ */ new Set([rootThreadId]);
 	const result = [];
 	let changed = true;
 	while (changed) {
 		changed = false;
-		for (const runtime of runtimes) if (!visible.has(runtime.entry.id) && visible.has(runtime.parentThreadId)) {
-			visible.add(runtime.entry.id);
-			result.push(runtime);
+		for (const candidate of candidates) if (candidate.parentThreadId && !visible.has(candidate.sessionId) && visible.has(candidate.parentThreadId)) {
+			visible.add(candidate.sessionId);
+			result.push(candidate);
 			changed = true;
 		}
 	}
@@ -6460,11 +6460,11 @@ function collectAgentEntries(session, env = process.env, now = /* @__PURE__ */ n
 	pruneTimedCache(rolloutCache, now.getTime(), ROLLOUT_CACHE_MAX_AGE_MS, ROLLOUT_CACHE_MAX_ENTRIES);
 	const key = `${codexHome}:${session.id}`;
 	if (cache$1?.key === key && now.getTime() - cache$1.at < CACHE_MS) return structuredClone(cache$1.agents);
-	const runtimes = listSessionCandidates(codexHome).filter((candidate) => isSubagentSource(candidate.source) && candidate.parentThreadId).flatMap((candidate) => {
+	const candidates = listSessionCandidates(codexHome).filter((candidate) => isSubagentSource(candidate.source) && candidate.parentThreadId);
+	const tree = descendants(session.id, candidates).flatMap((candidate) => {
 		const runtime = parseAgent(candidate, now);
 		return runtime ? [runtime] : [];
 	});
-	const tree = descendants(session.id, runtimes);
 	const childrenByParent = /* @__PURE__ */ new Map();
 	for (const runtime of tree) {
 		const siblings = childrenByParent.get(runtime.parentThreadId) ?? [];
@@ -6949,4 +6949,4 @@ async function waitForNewRootSession(cwd, snapshot, codexHome = getCodexHome(), 
 
 //#endregion
 export { readLatestLoggedRateLimits as A, shellCommand as B, rawConfigVersion as C, RolloutParser as D, findActiveSession as E, refreshAccountUsage as F, isOfficialOpenAIEndpoint as G, hasTrustedOpenAiAuth as H, selectAccountUsage as I, resolveSessionEndpoint as J, resolveProcessEndpoint as K, evaluateUsageTrust as L, readConfiguredExternalUsage as M, resolveUsageData as N, inspectLoggedRateLimitTargets as O, readCachedAccountUsage as P, getLegacyStateDirectory as Q, HUD_VERSION as R, applyConfigMigrations as S, DEFAULT_GENERAL_EXTERNAL_USAGE_QUERY as T, findCodexLogDatabase as U, shellQuote as V, inspectCodexLogSchema as W, getConfigPath as X, getCodexHome as Y, getHudStateDirectory as Z, truncateAnsi as _, snapshotRootSessions as a, loadConfig as b, writeSessionBinding as c, hudRenderHeight as d, readCmuxPaneGeometry as f, renderHud as g, settleCmuxPaneHeight as h, readSessionBinding as i, readCachedConfiguredExternalUsage as j, persistRolloutRateLimits as k, buildHudState as l, resizeHudPane as m, createSessionBindingPath as n, waitForNewRootSession as o, resizeCmuxPane as p, resolveProcessSession as q, findRootSessionById as r, waitForRootSessionById as s, acquireSessionDiscoveryLock as t, desiredPaneHeight as u, visibleWidth as v, DEFAULT_CONFIG as w, reloadConfig as x, sliceAnsi as y, findExecutable as z };
-//# sourceMappingURL=session-binding-BzBJvO38.mjs.map
+//# sourceMappingURL=session-binding-BV5twhzY.mjs.map

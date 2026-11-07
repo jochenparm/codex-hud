@@ -125,7 +125,7 @@ export function readSessionCandidate(filePath: string): SessionCandidate | null 
       return null
     }
     const payload = entry.payload
-    const sessionId = payload.session_id ?? payload.id
+    const sessionId = payload.id ?? payload.session_id
     const cwd = payload.cwd
     if (typeof sessionId !== 'string' || typeof cwd !== 'string') {
       return null

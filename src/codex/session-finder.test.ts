@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { RolloutParser } from './rollout-parser.js'
 import { findActiveSession, isSubagentSource, readSessionCandidate } from './session-finder.js'
 
 const temporaryDirectories: string[] = []
@@ -33,20 +34,27 @@ afterEach(() => {
 })
 
 describe('session discovery', () => {
-  it('reads canonical session metadata', () => {
+  it.each([
+    { ids: { id: 'session-one' }, expectedId: 'session-one' },
+    { ids: { session_id: 'legacy-session' }, expectedId: 'legacy-session' },
+    { ids: { id: 'child-thread', session_id: 'root-conversation' }, expectedId: 'child-thread' },
+  ])('uses $expectedId consistently for discovery and rollout parsing', ({ ids, expectedId }) => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-hud-session-'))
     temporaryDirectories.push(directory)
     const filePath = writeSession(directory, 'one', {
-      id: 'session-one',
+      ...ids,
       timestamp: '2026-07-16T08:00:00Z',
       cwd: '/work/demo',
       source: 'cli',
     }, new Date('2026-07-16T08:05:00Z'))
     expect(readSessionCandidate(filePath)).toMatchObject({
-      sessionId: 'session-one',
+      sessionId: expectedId,
       cwd: '/work/demo',
       source: 'cli',
     })
+    const parser = new RolloutParser()
+    parser.setFile(filePath)
+    expect(parser.parse().session?.id).toBe(expectedId)
   })
 
   it('selects the newest matching root session', () => {
@@ -68,8 +76,11 @@ describe('session discovery', () => {
     }, new Date('2026-07-16T08:03:00Z'))
     writeSession(directory, 'child', {
       id: 'child',
+      session_id: 'new',
       timestamp: '2026-07-16T08:04:00Z',
       cwd: project,
+      thread_source: 'subagent',
+      parent_thread_id: 'new',
       source: { subagent: { thread_spawn: { parent_thread_id: 'new' } } },
     }, new Date('2026-07-16T08:05:00Z'))
 

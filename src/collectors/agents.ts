@@ -191,16 +191,16 @@ function parseAgent(candidate: SessionCandidate, now: Date): AgentRuntime | null
   }
 }
 
-function descendants(rootThreadId: string, runtimes: AgentRuntime[]): AgentRuntime[] {
+function descendants(rootThreadId: string, candidates: SessionCandidate[]): SessionCandidate[] {
   const visible = new Set([rootThreadId])
-  const result: AgentRuntime[] = []
+  const result: SessionCandidate[] = []
   let changed = true
   while (changed) {
     changed = false
-    for (const runtime of runtimes) {
-      if (!visible.has(runtime.entry.id) && visible.has(runtime.parentThreadId)) {
-        visible.add(runtime.entry.id)
-        result.push(runtime)
+    for (const candidate of candidates) {
+      if (candidate.parentThreadId && !visible.has(candidate.sessionId) && visible.has(candidate.parentThreadId)) {
+        visible.add(candidate.sessionId)
+        result.push(candidate)
         changed = true
       }
     }
@@ -223,13 +223,12 @@ export function collectAgentEntries(
     return structuredClone(cache.agents)
   }
 
-  const runtimes = listSessionCandidates(codexHome)
+  const candidates = listSessionCandidates(codexHome)
     .filter(candidate => isSubagentSource(candidate.source) && candidate.parentThreadId)
-    .flatMap((candidate) => {
-      const runtime = parseAgent(candidate, now)
-      return runtime ? [runtime] : []
-    })
-  const tree = descendants(session.id, runtimes)
+  const tree = descendants(session.id, candidates).flatMap((candidate) => {
+    const runtime = parseAgent(candidate, now)
+    return runtime ? [runtime] : []
+  })
   const childrenByParent = new Map<string, AgentRuntime[]>()
   for (const runtime of tree) {
     const siblings = childrenByParent.get(runtime.parentThreadId) ?? []

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { A as readLatestLoggedRateLimits, B as shellCommand, C as rawConfigVersion, D as RolloutParser, E as findActiveSession, F as refreshAccountUsage, G as isOfficialOpenAIEndpoint, H as hasTrustedOpenAiAuth, I as selectAccountUsage, J as resolveSessionEndpoint, L as evaluateUsageTrust, M as readConfiguredExternalUsage, N as resolveUsageData, O as inspectLoggedRateLimitTargets, Q as getLegacyStateDirectory, R as HUD_VERSION, S as applyConfigMigrations, T as DEFAULT_GENERAL_EXTERNAL_USAGE_QUERY, U as findCodexLogDatabase, V as shellQuote, W as inspectCodexLogSchema, X as getConfigPath, Y as getCodexHome, Z as getHudStateDirectory, a as snapshotRootSessions, b as loadConfig, c as writeSessionBinding, g as renderHud, k as persistRolloutRateLimits, l as buildHudState, n as createSessionBindingPath, o as waitForNewRootSession, r as findRootSessionById, s as waitForRootSessionById, t as acquireSessionDiscoveryLock, w as DEFAULT_CONFIG, z as findExecutable } from "./session-binding-BzBJvO38.mjs";
+import { A as readLatestLoggedRateLimits, B as shellCommand, C as rawConfigVersion, D as RolloutParser, E as findActiveSession, F as refreshAccountUsage, G as isOfficialOpenAIEndpoint, H as hasTrustedOpenAiAuth, I as selectAccountUsage, J as resolveSessionEndpoint, L as evaluateUsageTrust, M as readConfiguredExternalUsage, N as resolveUsageData, O as inspectLoggedRateLimitTargets, Q as getLegacyStateDirectory, R as HUD_VERSION, S as applyConfigMigrations, T as DEFAULT_GENERAL_EXTERNAL_USAGE_QUERY, U as findCodexLogDatabase, V as shellQuote, W as inspectCodexLogSchema, X as getConfigPath, Y as getCodexHome, Z as getHudStateDirectory, a as snapshotRootSessions, b as loadConfig, c as writeSessionBinding, g as renderHud, k as persistRolloutRateLimits, l as buildHudState, n as createSessionBindingPath, o as waitForNewRootSession, r as findRootSessionById, s as waitForRootSessionById, t as acquireSessionDiscoveryLock, w as DEFAULT_CONFIG, z as findExecutable } from "./session-binding-BV5twhzY.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import process$1, { stdin, stdout } from "node:process";
@@ -2495,6 +2495,20 @@ function launchNewTmuxSession(options, runner = createTmuxRunner(options.env, op
 		sessionName,
 		"status",
 		"off"
+	]);
+	runner.run([
+		"set-option",
+		"-t",
+		sessionName,
+		"set-titles-string",
+		"#{P:#{?#{==:#{pane_index},0},#{pane_title},}}"
+	]);
+	runner.run([
+		"set-option",
+		"-t",
+		sessionName,
+		"set-titles",
+		"on"
 	]);
 	runner.run([
 		"set-option",
